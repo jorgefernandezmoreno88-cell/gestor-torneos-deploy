@@ -1,0 +1,48 @@
+# ======================
+# NODE / ASTRO
+# ======================
+node_modules/
+dist/
+.build/
+.env
+.env.*
+*.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ======================
+# JAVA / SPRING
+# ======================
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# Eclipse / STS
+.project
+.classpath
+.settings/
+.springBeans
+
+# ======================
+# VS CODE
+# ======================
+.vscode/
+.idea/
+
+# ======================
+# SISTEMA
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# OTROS
+# ======================
+*.tmp
+*.swp
+application-local.properties
+application-dev.properties

@@ -1,0 +1,153 @@
+---
+import type { Torneo } from '../../types/index';
+
+interface Props {
+  torneo: Torneo;
+}
+
+const { torneo } = Astro.props;
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'ABIERTO':
+      return 'status-open';
+    case 'EN_PROGRESO':
+      return 'status-in-progress';
+    case 'CERRADO':
+    case 'FINALIZADO':
+      return 'status-closed';
+    default:
+      return '';
+  }
+};
+
+const formatDate = (dateString?: string) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString('es-ES');
+};
+---
+
+<article class="torneo-card card">
+  <div class="card-header">
+    <div>
+      <h3><a href={`/torneos/${torneo.id}`}>{torneo.nombre}</a></h3>
+      <p class="nivel">{torneo.nivel}</p>
+    </div>
+    <span class={`status ${getStatusColor(torneo.estado)}`}>
+      {torneo.estado}
+    </span>
+  </div>
+
+  {torneo.descripcion && <p class="description">{torneo.descripcion}</p>}
+
+  <div class="card-meta">
+    {torneo.fechaInicio && (
+      <div class="meta-item">
+        <span class="icon">📅</span>
+        <span>{formatDate(torneo.fechaInicio)}</span>
+      </div>
+    )}
+    <div class="meta-item">
+      <span class="icon">👥</span>
+      <span>{torneo.plazasMaximas} participantes</span>
+    </div>
+    <div class="meta-item">
+      <span class="icon">🔄</span>
+      <span>{torneo.numRondas} rondas</span>
+    </div>
+  </div>
+
+  <div class="card-footer">
+    <a href={`/torneos/${torneo.id}`} class="button button-primary">
+      Ver Detalles
+    </a>
+  </div>
+</article>
+
+<style>
+  .torneo-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+    gap: var(--spacing-md);
+  }
+
+  .card-header h3 {
+    margin: 0;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .card-header a {
+    color: var(--color-primary);
+  }
+
+  .nivel {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+  }
+
+  .status {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-md);
+    background-color: var(--color-bg-tertiary);
+    white-space: nowrap;
+  }
+
+  .description {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-md);
+    flex: 1;
+    font-size: var(--font-size-sm);
+  }
+
+  .card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md) 0;
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .icon {
+    font-size: 1rem;
+  }
+
+  .card-footer {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: auto;
+  }
+
+  .button {
+    flex: 1;
+    text-align: center;
+  }
+
+  @media (max-width: 768px) {
+    .card-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

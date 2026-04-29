@@ -1,0 +1,232 @@
+login;
+registro;
+listado de torneos;
+detalle torneo;
+inscripción;
+panel organizador básico;
+crear torneo;
+ver rondas/partidas;
+registrar resultado;
+clasificación.
+
+Vas muy bien de backend, pero con 3 días hay que recortar y priorizar fuerte.
+
+Estado real del backend
+
+Diría que el backend está al 80–85% para un proyecto presentable.
+
+Ya tienes mucho:
+
+usuarios, login, BCrypt, token simple
+roles y permisos
+torneos completos
+inscripciones
+rondas
+partidas
+resultados
+clasificación
+BYE
+Buchholz
+evitar enfrentamientos repetidos
+ranking global
+historial de usuario
+dashboard/resumen
+DTOs limpios
+errores controlados
+CORS
+documentación API
+
+Eso es bastante más que un CRUD.
+
+Lo que falta de backend sería:
+
+limpieza de credenciales/.gitignore
+tests básicos si da tiempo
+crear admin inicial o documentar cómo promover admin
+revisar endpoints públicos/protegidos
+quizá Swagger, pero no lo pondría como prioridad ahora
+Con 3 días, yo NO seguiría ampliando backend
+
+Salvo bugs, pararía backend ya.
+
+El riesgo ahora es seguir puliendo backend y quedarte sin interfaz usable.
+
+Prioridad absoluta: frontend Astro
+
+Necesitas que se pueda demostrar el flujo completo:
+
+Día 1 — hoy
+
+Dejar vistas mínimas funcionales:
+
+login
+listado de torneos
+detalle de torneo
+crear torneo
+inscribirse a torneo
+ver clasificación
+ver rondas/partidas
+
+Con eso ya puedes enseñar la app.
+
+Día 2
+
+Añadir parte organizador/admin:
+
+abrir/cerrar torneo
+generar ronda inicial
+iniciar/finalizar ronda
+registrar resultados
+generar siguiente ronda
+ver resumen/dashboard
+Día 3
+
+Añadir IA + pulido:
+
+búsqueda semántica
+asistente de chat
+estilos, navegación, mensajes de error
+preparar demo y datos de prueba
+Sobre búsqueda semántica y asistente
+
+No intentes hacerlos enormes.
+
+Haz una versión MVP:
+
+Búsqueda semántica
+
+Que busque torneos por texto tipo:
+
+“torneos para principiantes de formato suizo”
+
+Puede usar:
+
+endpoint /api/busqueda
+embeddings si ya tienes Supabase pgvector preparado
+o una versión simplificada si falta tiempo
+Asistente chat
+
+No lo hagas autónomo enorme.
+
+Hazlo como asistente limitado a la app:
+
+“¿Qué torneos hay abiertos?”
+“¿Cuál es mi próxima partida?”
+“Explícame la clasificación del torneo X”
+“¿Quién va primero?”
+
+Puede consumir tus endpoints y responder.
+
+Mi recomendación clara
+
+No más features nuevas de backend salvo:
+
+admin inicial
+endpoint semántico
+endpoint chat
+
+Todo lo demás, frontend.
+
+Plan de 3 días
+Hoy
+
+Frontend base conectado.
+
+Mañana
+
+Frontend organizador + flujo torneo completo.
+
+Último día
+
+IA + pulido + demo.
+
+Siguiente paso
+
+Yo haría ahora un prompt para Cursor tipo:
+
+“Audita el frontend Astro actual y dime qué vistas existen, cuáles faltan y qué endpoints backend consume cada una.”
+
+Antes de construir a ciegas
+
+ESTADO FONRTEND
+
+Implementé una versión mínima funcional sin refactor grande, reutilizando api.ts y manteniendo las vistas existentes.
+
+Archivos creados/modificados
+Creados
+
+frontend/src/pages/login.astro
+frontend/src/pages/torneos/nuevo.astro
+Modificados
+
+frontend/src/lib/api.ts
+frontend/src/components/ui/NavBar.astro
+frontend/src/pages/torneos/index.astro
+frontend/src/pages/torneos/[id].astro
+frontend/src/types/index.ts
+Rutas disponibles (frontend)
+/
+/login ✅ nueva
+/torneos
+/torneos/nuevo ✅ nueva
+/torneos/:id
+/404
+Qué acciones funcionan ahora
+Login mínimo en /login
+
+Envía POST /api/auth/login
+Guarda authToken y authUser en localStorage
+Redirige a /torneos
+Muestra error si falla
+Logout mínimo en navegación
+
+Si hay token, muestra Salir
+Limpia localStorage (authToken, authUser)
+Redirige a /login
+Listado de torneos en /torneos
+
+Sigue usando GET /api/torneos
+Botón Crear torneo visible solo para ADMIN/ORGANIZADOR
+Cada card enlaza a /torneos/{id}
+Crear torneo en /torneos/nuevo
+
+Formulario mínimo solicitado
+Requiere token + rol ADMIN/ORGANIZADOR
+Envía POST /api/torneos con Bearer
+Redirige a /torneos/{id} al crear
+Detalle de torneo en /torneos/:id
+
+Mantiene carga de:
+GET /api/torneos/{id}
+GET /api/torneos/{id}/inscripciones
+GET /api/torneos/{id}/rondas
+GET /api/torneos/{id}/partidas
+GET /api/torneos/{id}/clasificacion
+Añade acciones mínimas:
+Inscribirme -> POST /api/torneos/{id}/inscripciones
+Abrir torneo -> PATCH /api/torneos/{id}/abrir
+Generar ronda inicial -> POST /api/torneos/{id}/generar-ronda-inicial
+Iniciar ronda (por ronda) -> PATCH /api/rondas/{rondaId}/iniciar
+Registrar resultado (por partida) -> PATCH /api/partidas/{partidaId}/resultado
+Mensajes básicos:
+“Necesitas iniciar sesión”
+“No tienes permisos”
+“Operación realizada correctamente”
+Mensaje backend si viene en error
+Qué queda pendiente
+Validaciones UX más finas (por ejemplo ocultar “Inscribirme” si ya inscrito).
+Mejoras visuales y estado de carga por acción.
+Manejar más casos de negocio en frontend (estados de torneo/ronda más estrictos).
+Ajustar tipos frontend para reflejar al 100% los enums reales backend (ahora está funcional pero no perfecto en tipado legacy).
+Resultado de npm run build
+Ejecutado en frontend:
+
+Primero falló porque faltaban dependencias (astro no reconocido).
+Instalé dependencias con npm install.
+Luego npm run build falla con:
+NoAdapterInstalled: Cannot use server-rendered pages without an adapter
+
+Esto está relacionado con configuración Astro SSR existente (no con la lógica nueva): hay páginas server-rendered y no hay adapter configurado en el proyecto.
+
+Si quieres, en el siguiente paso te dejo la corrección mínima para build (adapter Node) sin tocar lógica funcional.
+

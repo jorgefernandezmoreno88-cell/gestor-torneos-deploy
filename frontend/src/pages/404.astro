@@ -1,0 +1,57 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+---
+
+<MainLayout
+  title="Página no encontrada - Gestor de Torneos"
+  description="La página que buscas no existe"
+>
+  <div class="container">
+    <div class="error-container">
+      <div class="error-icon">404</div>
+      <h1>Página no encontrada</h1>
+      <p>Lo sentimos, la página que buscas no existe o ha sido eliminada.</p>
+      <a href="/" class="button button-primary">Volver al inicio</a>
+    </div>
+  </div>
+</MainLayout>
+
+<style>
+  .error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 300px);
+    text-align: center;
+  }
+
+  .error-icon {
+    font-size: 6rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .error-container h1 {
+    font-size: var(--font-size-3xl);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .error-container p {
+    font-size: var(--font-size-lg);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-lg);
+    max-width: 500px;
+  }
+
+  @media (max-width: 768px) {
+    .error-icon {
+      font-size: 4rem;
+    }
+
+    .error-container h1 {
+      font-size: var(--font-size-2xl);
+    }
+  }
+</style>

@@ -1,0 +1,1279 @@
+---
+export const prerender = false;
+
+import MainLayout from "../../layouts/MainLayout.astro";
+import {
+  getTorneoById,
+  getClasificacionByTorneo,
+  getRondasByTorneo,
+  getPartidasByTorneo,
+  getInscripcionesByTorneo,
+  API_BASE_URL,
+} from "../../lib/api";
+
+const { id } = Astro.params;
+const torneoId = Number(id);
+
+let torneo = null;
+let clasificacion = [];
+let rondas = [];
+let partidas = [];
+let inscripciones = [];
+let error: string | null = null;
+
+try {
+  console.log("[DetalleTorneo] id param recibido:", id);
+  console.log("[DetalleTorneo] id parseado:", torneoId);
+
+  if (!Number.isFinite(torneoId)) {
+    throw new Error("ID de torneo inválido");
+  }
+
+  torneo = await getTorneoById(torneoId);
+
+  const resultados = await Promise.allSettled([
+    getClasificacionByTorneo(torneoId),
+    getRondasByTorneo(torneoId),
+    getPartidasByTorneo(torneoId),
+    getInscripcionesByTorneo(torneoId),
+  ]);
+
+  if (resultados[0].status === "fulfilled") clasificacion = resultados[0].value;
+  if (resultados[1].status === "fulfilled") rondas = resultados[1].value;
+  if (resultados[2].status === "fulfilled") partidas = resultados[2].value;
+  if (resultados[3].status === "fulfilled") inscripciones = resultados[3].value;
+
+  resultados.forEach((resultado, index) => {
+    if (resultado.status === "rejected") {
+      console.warn("[DetalleTorneo] Error carga sección", {
+        index,
+        reason: resultado.reason,
+      });
+    }
+  });
+} catch (err) {
+  error = "Torneo no encontrado";
+  console.error(err);
+}
+
+if (!error && !torneo) {
+  error = "Torneo no encontrado";
+}
+---
+
+<MainLayout
+  title={`${torneo?.nombre || "Torneo"} - Gestor de Torneos`}
+  description={torneo?.descripcion || "Detalles del torneo"}
+>
+  <div class="container">
+    {error && <div class="alert alert-error"> {error}</div>}
+
+    {
+      torneo && (
+        <>
+          <div class="torneo-header">
+            <div>
+              <h1>{torneo.nombre}</h1>
+              {torneo.descripcion && (
+                <p class="descripcion">{torneo.descripcion}</p>
+              )}
+            </div>
+            <div class="estado-badge">{torneo.estado}</div>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="label">Formato</span>
+              <span class="value">{torneo.formato}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Nivel</span>
+              <span class="value">{torneo.nivel}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Plazas</span>
+              <span class="value">{torneo.plazasMaximas}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Rondas</span>
+              <span class="value">{torneo.numRondas}</span>
+            </div>
+            {torneo.fechaInicio && (
+              <div class="info-item">
+                <span class="label">Fecha inicio</span>
+                <span class="value">
+                  {new Date(torneo.fechaInicio).toLocaleDateString("es-ES")}
+                </span>
+              </div>
+            )}
+            {torneo.costeInscripcion != null && (
+              <div class="info-item">
+                <span class="label">Coste</span>
+                <span class="value">
+                  {Number(torneo.costeInscripcion) === 0
+                    ? "Gratis"
+                    : `${torneo.costeInscripcion} €`}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <section class="acciones card">
+            <h2>Acciones</h2>
+            <div id="action-message" class="alert" style="display:none;" />
+            <div class="acciones-grid">
+              <button
+                id="btn-inscribirme"
+                class="button button-primary"
+                type="button"
+              >
+                Inscribirme
+              </button>
+              <button
+                id="btn-abrir-torneo"
+                class="button button-secondary hidden"
+                type="button"
+              >
+                Abrir torneo
+              </button>
+              <span id="estado-apertura" class="estado-apertura hidden" />
+              <button
+                id="btn-cerrar-torneo"
+                class="button button-secondary hidden"
+                type="button"
+              >
+                Cerrar inscripciones
+              </button>
+              <button
+                id="btn-generar-ronda"
+                class="button button-secondary hidden"
+                type="button"
+              >
+                Generar ronda inicial
+              </button>
+              <button
+                id="btn-generar-siguiente-ronda"
+                class="button button-secondary hidden"
+                type="button"
+              >
+                Siguiente ronda
+              </button>
+            </div>
+          </section>
+
+          <div class="contenido-principal">
+            <section class="seccion-inscripciones card">
+              <h2>Inscripciones</h2>
+              <div class="inscripciones-stats">
+                <div class="stat">
+                  <span class="numero" id="inscritos-count">
+                    {
+                      inscripciones.filter((i) => i.estado === "INSCRITO")
+                        .length
+                    }
+                  </span>
+                  <span class="label">Inscritos</span>
+                </div>
+                <div class="stat">
+                  <span class="numero" id="retirados-count">
+                    {
+                      inscripciones.filter((i) => i.estado === "RETIRADO")
+                        .length
+                    }
+                  </span>
+                  <span class="label">Retirados</span>
+                </div>
+              </div>
+              <p class="empty-state" id="inscripciones-empty">
+                {inscripciones.length === 0 ? "Sin inscritos" : ""}
+              </p>
+              <ul class="inscripciones-list" id="inscripciones-list">
+                {inscripciones
+                  .filter((i) => i.estado === "INSCRITO")
+                  .map((inscripcion) => (
+                    <li class="inscripcion-item">
+                      <span class="nombre">
+                        {inscripcion.usuarioNombre || "Desconocido"}
+                      </span>
+                      <span class="fecha">
+                        {new Date(
+                          inscripcion.fechaInscripcion,
+                        ).toLocaleDateString("es-ES")}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </section>
+
+            
+              <section class="seccion-clasificacion card">
+  <div class="section-header">
+    <h2>Clasificación</h2>
+
+    <button
+      id="btn-descargar-pdf"
+      class="button button-secondary"
+      type="button"
+       data-torneo-id={torneoId}
+  data-api-base-url={"http://localhost:8080"}
+    >
+      Descargar PDF
+    </button>
+  </div>
+
+  <div id="clasificacion-pdf">
+              <p class="empty-state" id="clasificacion-empty">
+                {clasificacion.length === 0
+                  ? "Inicia sesión para ver la clasificación"
+                  : ""}
+              </p>
+              <div class="tabla-wrapper">
+                <table class="tabla-clasificacion" id="clasificacion-table">
+                  <thead>
+                    <tr>
+                      <th>Pos</th>
+                      <th>Jugador</th>
+                      <th>Pts</th>
+                      <th>V</th>
+                      <th>D</th>
+                      <th>E</th>
+                      <th>Buchholz</th>
+                    </tr>
+                  </thead>
+                  <tbody id="clasificacion-body">
+                    {clasificacion.map((item) => (
+                      <tr>
+                        <td>{item.posicion ?? "-"}</td>
+                        <td>{item.usuarioNombre ?? "-"}</td>
+                        <td>{item.puntos ?? "-"}</td>
+                        <td>{item.victorias ?? "-"}</td>
+                        <td>{item.derrotas ?? "-"}</td>
+                        <td>{item.empates ?? "-"}</td>
+                        <td>{item.buchholz ?? "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              </div>
+            </section>
+
+            <section class="seccion-rondas card">
+              <h2>Rondas</h2>
+              <p class="empty-state" id="rondas-empty">
+                {rondas.length === 0 ? "No hay rondas programadas." : ""}
+              </p>
+              <div class="rondas-grid" id="rondas-list">
+                {rondas.map((ronda) => (
+                  <div class="ronda-card">
+                    <div class="ronda-header">
+                      <h3>Ronda {ronda.numero}</h3>
+                      <span class="status">{ronda.estado}</span>
+                    </div>
+                    {ronda.fechaInicio && (
+                      <p class="fecha">
+                        {" "}
+                        {new Date(ronda.fechaInicio).toLocaleDateString(
+                          "es-ES",
+                        )}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+                        <section class="seccion-partidas card">
+              <h2>Partidas</h2>
+              <p class="empty-state" id="partidas-empty">
+                {partidas.length === 0 ? "Sin partidas" : ""}
+              </p>
+              <div class="partidas-grid" id="partidas-list">
+                {partidas.map((partida) => (
+                  <div class="partida-card">
+                    <div class="partida-line">
+                      <strong>ID:</strong> {partida.id}
+                    </div>
+                    <div class="partida-line">
+                      <strong>Ronda:</strong> {partida.rondaId || "-"}
+                    </div>
+                    <div class="partida-line">
+                      <strong>Jugador 1:</strong>{" "}
+                      {partida.usuario1Nombre || partida.usuario1Id || "-"}
+                    </div>
+                    <div class="partida-line">
+                      <strong>Jugador 2:</strong>{" "}
+                      {partida.usuario2Nombre || partida.usuario2Id || "-"}
+                    </div>
+                    <div class="partida-line">
+                      <strong>Estado:</strong> {partida.estado || "-"}
+                    </div>
+                    <div class="partida-line">
+                      <strong>Resultado:</strong> {partida.resultado || "-"}
+                    </div>
+                    <div class="partida-line">
+                      <strong>Ganador:</strong>{" "}
+                      {partida.ganadorNombre || partida.ganadorId || "-"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </>
+      )
+    }
+  </div>
+</MainLayout>
+
+<style>
+  .torneo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-2xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 2px solid var(--color-border);
+    gap: var(--spacing-lg);
+  }
+
+  .torneo-header h1 {
+    margin: 0 0 var(--spacing-sm) 0;
+  }
+
+  .descripcion {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-lg);
+    margin: 0;
+  }
+
+  .estado-badge {
+    background-color: var(--color-primary);
+    color: white;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-2xl);
+    padding: var(--spacing-lg);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .info-item .label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .info-item .value {
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .contenido-principal {
+    display: grid;
+    gap: var(--spacing-2xl);
+  }
+
+  .acciones-grid,
+  .acciones-ronda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+
+  .resultados-grid {
+    display: grid;
+    gap: var(--spacing-md);
+  }
+
+  .resultado-form {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    display: grid;
+    gap: var(--spacing-sm);
+  }
+
+  .resultado-form input {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .resultado-title {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+  }
+
+  .hidden {
+    display: none;
+  }
+
+  .seccion-inscripciones {
+    margin: var(--spacing-lg) 0;
+  }
+
+  .seccion-rondas {
+    margin: var(--spacing-lg) 0;
+  }
+  .seccion-clasificacion {
+    margin: var(--spacing-lg) 0;
+  }
+  .tabla-wrapper {
+    overflow-x: auto;
+  }
+  .tabla-clasificacion {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .tabla-clasificacion th,
+  .tabla-clasificacion td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+  }
+  .seccion-partidas {
+    margin: var(--spacing-lg) 0;
+  }
+
+  .rondas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .ronda-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    background-color: var(--color-bg-primary);
+  }
+  .ronda-actions {
+    margin-top: var(--spacing-sm);
+  }
+
+  .ronda-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .ronda-header h3 {
+    margin: 0;
+  }
+
+  .status {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-md);
+    background-color: var(--color-bg-tertiary);
+  }
+  .partidas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+  }
+  .partida-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    background-color: var(--color-bg-primary);
+    display: grid;
+    gap: var(--spacing-xs);
+  }
+  .partida-line {
+    font-size: var(--font-size-sm);
+  }
+  .resultado-form-card {
+    margin-top: var(--spacing-sm);
+    display: grid;
+    gap: var(--spacing-xs);
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--spacing-sm);
+  }
+
+  .inscripciones-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-md);
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+  }
+
+  .numero {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
+  }
+
+  .label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-xs);
+  }
+
+  .inscripciones-list {
+    list-style: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .inscripcion-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .inscripcion-item:last-child {
+    border-bottom: none;
+  }
+
+  .nombre {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .fecha {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .estado-apertura {
+    display: inline-flex;
+    align-items: center;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    padding: 0 var(--spacing-xs);
+  }
+
+  @media (max-width: 768px) {
+    .torneo-header {
+      flex-direction: column;
+      gap: var(--spacing-md);
+    }
+
+    .estado-badge {
+      width: 100%;
+      text-align: center;
+    }
+
+    .info-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>
+
+<script
+  define:vars={{
+    torneoId,
+    torneoEstado: torneo?.estado ?? "",
+    apiBaseUrl: API_BASE_URL,
+  }}
+>
+  const USER_KEY = "authUser";
+  const TOKEN_KEY = "authToken";
+
+  let rondasCache = [];
+
+  function authHeaders(includeJson = false) {
+    const headers = {};
+    const token = localStorage.getItem(TOKEN_KEY);
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (includeJson) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    return headers;
+  }
+
+  async function apiFetch(path, options = {}) {
+    const response = await fetch(`${apiBaseUrl}${path}`, options);
+
+    if (!response.ok) {
+      let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+
+      try {
+        const data = await response.json();
+        if (data?.message) errorMessage = data.message;
+      } catch (_e) {}
+
+      throw new Error(errorMessage);
+    }
+
+    return response;
+  }
+
+  async function fetchInscripciones() {
+    const response = await apiFetch(`/torneos/${torneoId}/inscripciones`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  async function fetchRondas() {
+    const response = await apiFetch(`/torneos/${torneoId}/rondas`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  async function fetchClasificacion() {
+    const response = await apiFetch(`/torneos/${torneoId}/clasificacion`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  async function fetchPartidas() {
+    const response = await apiFetch(`/torneos/${torneoId}/partidas`, {
+      method: "GET",
+      headers: authHeaders(),
+    });
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  function getAuthUser() {
+    const raw = localStorage.getItem(USER_KEY);
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch (_e) {
+      localStorage.removeItem(USER_KEY);
+      return null;
+    }
+  }
+
+  function showActionMessage(text, level = "info") {
+    const box = document.getElementById("action-message");
+    if (!box) return;
+
+    box.className = `alert alert-${level}`;
+    box.textContent = text;
+    box.style.display = "block";
+  }
+
+  async function perform(action, fallback = "Error en operación") {
+    try {
+      await action();
+      showActionMessage("Operación realizada correctamente", "success");
+      window.location.reload();
+    } catch (error) {
+      showActionMessage(
+        error instanceof Error ? error.message : fallback,
+        "error",
+      );
+    }
+  }
+
+  function renderInscripciones(items) {
+    const inscritosCount = document.getElementById("inscritos-count");
+    const retiradosCount = document.getElementById("retirados-count");
+    const emptyLabel = document.getElementById("inscripciones-empty");
+    const list = document.getElementById("inscripciones-list");
+
+    if (!inscritosCount || !retiradosCount || !emptyLabel || !list) return;
+
+    const inscritos = items.filter((i) => i?.estado === "INSCRITO");
+    const retirados = items.filter((i) => i?.estado === "RETIRADO");
+
+    inscritosCount.textContent = String(inscritos.length);
+    retiradosCount.textContent = String(retirados.length);
+    emptyLabel.textContent = inscritos.length === 0 ? "Sin inscritos" : "";
+
+    list.innerHTML = inscritos
+      .map((inscripcion) => {
+        const nombre = inscripcion?.usuarioNombre || "Desconocido";
+        const fecha = inscripcion?.fechaInscripcion
+          ? new Date(inscripcion.fechaInscripcion).toLocaleDateString("es-ES")
+          : "";
+
+        return `
+          <li class="inscripcion-item">
+            <span class="nombre">${nombre}</span>
+            <span class="fecha">${fecha}</span>
+          </li>
+        `;
+      })
+      .join("");
+  }
+
+  function renderClasificacion(items) {
+    const emptyLabel = document.getElementById("clasificacion-empty");
+    const body = document.getElementById("clasificacion-body");
+
+    if (!emptyLabel || !body) return;
+
+    if (!items.length) {
+      emptyLabel.textContent = "No hay clasificación disponible.";
+      body.innerHTML = "";
+      return;
+    }
+
+    emptyLabel.textContent = "";
+
+    body.innerHTML = items
+      .map((item) => {
+        const posicion = item?.posicion ?? item?.puesto ?? "-";
+        const jugador =
+          item?.usuarioNombre ?? item?.jugador ?? item?.nombre ?? "-";
+        const puntos = item?.puntos ?? "-";
+        const victorias = item?.victorias ?? "-";
+        const derrotas = item?.derrotas ?? "-";
+        const empates = item?.empates ?? "-";
+        const buchholz = item?.buchholz ?? item?.desempateBuchholz ?? "-";
+
+        return `
+          <tr>
+            <td>${posicion}</td>
+            <td>${jugador}</td>
+            <td>${puntos}</td>
+            <td>${victorias}</td>
+            <td>${derrotas}</td>
+            <td>${empates}</td>
+            <td>${buchholz}</td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  function renderRondas(items, canManage) {
+    const emptyLabel = document.getElementById("rondas-empty");
+    const list = document.getElementById("rondas-list");
+
+    if (!emptyLabel || !list) return;
+
+    rondasCache = Array.isArray(items) ? items : [];
+
+    emptyLabel.textContent =
+      rondasCache.length === 0 ? "No hay rondas programadas." : "";
+
+    list.innerHTML = rondasCache
+      .map((ronda) => {
+        const numero = ronda?.numero ?? "-";
+        const estado = ronda?.estado ?? "DESCONOCIDO";
+        const rondaId = ronda?.id;
+        const fecha = ronda?.fechaInicio
+          ? new Date(ronda.fechaInicio).toLocaleDateString("es-ES")
+          : "";
+
+        const canStart =
+          canManage && estado === "PENDIENTE" && rondaId != null;
+
+        const canFinish =
+          canManage &&
+          rondaId != null &&
+          ["EN_CURSO", "ACTIVA", "INICIADA"].includes(estado);
+
+        return `
+          <div class="ronda-card">
+            <div class="ronda-header">
+              <h3>Ronda ${numero}</h3>
+              <span class="status">${estado}</span>
+            </div>
+
+            ${fecha ? `<p class="fecha">${fecha}</p>` : ""}
+
+            ${
+              canStart || canFinish
+                ? `
+                  <div class="ronda-actions">
+                    ${
+                      canStart
+                        ? `<button type="button" class="button button-secondary btn-iniciar-ronda" data-ronda-id="${rondaId}">Iniciar ronda</button>`
+                        : ""
+                    }
+                    ${
+                      canFinish
+                        ? `<button type="button" class="button button-secondary btn-finalizar-ronda" data-ronda-id="${rondaId}">Finalizar ronda</button>`
+                        : ""
+                    }
+                  </div>
+                `
+                : ""
+            }
+          </div>
+        `;
+      })
+      .join("");
+
+    document.querySelectorAll(".btn-iniciar-ronda").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rondaId = btn.dataset.rondaId;
+
+        perform(
+          () =>
+            apiFetch(`/rondas/${rondaId}/iniciar`, {
+              method: "PATCH",
+              headers: authHeaders(),
+            }),
+          "No se pudo iniciar la ronda",
+        );
+      });
+    });
+
+    document.querySelectorAll(".btn-finalizar-ronda").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const rondaId = btn.dataset.rondaId;
+
+        perform(
+          () =>
+            apiFetch(`/rondas/${rondaId}/finalizar`, {
+              method: "PATCH",
+              headers: authHeaders(),
+            }),
+          "No se pudo finalizar la ronda",
+        );
+      });
+    });
+
+    controlBotonSiguienteRonda(rondasCache, canManage);
+  }
+
+  function controlBotonSiguienteRonda(items, canManage) {
+    const btn = document.getElementById("btn-generar-siguiente-ronda");
+    if (!btn) return;
+
+    const rondas = Array.isArray(items) ? items : [];
+    const ultimaRonda = rondas.length > 0 ? rondas[rondas.length - 1] : null;
+
+    const estadoFinalizado = ["FINALIZADA", "VALIDADA", "FINALIZADO"].includes(
+      ultimaRonda?.estado,
+    );
+
+    if (canManage && ultimaRonda && estadoFinalizado) {
+      btn.classList.remove("hidden");
+    } else {
+      btn.classList.add("hidden");
+    }
+  }
+
+  function obtenerNumeroRonda(partida) {
+    if (partida?.rondaNumero != null) return partida.rondaNumero;
+    if (partida?.ronda?.numero != null) return partida.ronda.numero;
+
+    const rondaId = partida?.rondaId;
+    const ronda = rondasCache.find((r) => Number(r.id) === Number(rondaId));
+
+    return ronda?.numero ?? rondaId ?? "-";
+  }
+
+  function renderPartidas(items, canManage) {
+    const emptyLabel = document.getElementById("partidas-empty");
+    const list = document.getElementById("partidas-list");
+
+    if (!emptyLabel || !list) return;
+
+    emptyLabel.textContent = items.length === 0 ? "Sin partidas" : "";
+
+    list.innerHTML = items
+      .map((partida) => {
+        const id = partida?.id ?? "-";
+        const rondaNumero = obtenerNumeroRonda(partida);
+
+        const jugador1 =
+          partida?.usuario1Nombre ||
+          partida?.usuario1 ||
+          partida?.usuario1Id ||
+          "-";
+
+        const jugador2 =
+          partida?.usuario2Nombre ||
+          partida?.usuario2 ||
+          partida?.usuario2Id ||
+          "-";
+
+        const estado = partida?.estado || "-";
+        const resultado = partida?.resultado || "-";
+
+        const ganador =
+          partida?.ganadorNombre ||
+          partida?.ganador ||
+          partida?.ganadorId ||
+          "-";
+
+        const canSetResult =
+          canManage && ["PENDIENTE", "PROGRAMADA", "JUGANDO"].includes(estado);
+
+        return `
+          <div class="partida-card">
+            <div class="partida-line"><strong>Ronda:</strong> ${rondaNumero}</div>
+            <div class="partida-line"><strong>Jugador 1:</strong> ${jugador1}</div>
+            <div class="partida-line"><strong>Jugador 2:</strong> ${jugador2}</div>
+            <div class="partida-line"><strong>Estado:</strong> ${estado}</div>
+            <div class="partida-line"><strong>Resultado:</strong> ${resultado}</div>
+            <div class="partida-line"><strong>Ganador:</strong> ${ganador}</div>
+
+            ${
+              canSetResult
+                ? `
+                  <form class="resultado-form-card" data-partida-id="${id}">
+                    <input name="resultado" placeholder="resultado (ej: 1-0)" required />
+
+                    <select name="ganadorId">
+                      <option value="">Selecciona ganador</option>
+                      ${
+                        partida?.usuario1Id
+                          ? `<option value="${partida.usuario1Id}">${jugador1}</option>`
+                          : ""
+                      }
+                      ${
+                        partida?.usuario2Id
+                          ? `<option value="${partida.usuario2Id}">${jugador2}</option>`
+                          : ""
+                      }
+                    </select>
+
+                    <label class="checkbox-label">
+                      <input name="empate" type="checkbox" /> Empate
+                    </label>
+
+                    <button class="button button-secondary" type="submit">
+                      Registrar resultado
+                    </button>
+                  </form>
+                `
+                : ""
+            }
+          </div>
+        `;
+      })
+      .join("");
+
+    document.querySelectorAll(".resultado-form-card").forEach((form) => {
+      const empateCheckbox = form.querySelector('input[name="empate"]');
+      const ganadorSelect = form.querySelector('select[name="ganadorId"]');
+
+      if (empateCheckbox && ganadorSelect) {
+        empateCheckbox.addEventListener("change", () => {
+          if (empateCheckbox.checked) {
+            ganadorSelect.value = "";
+            ganadorSelect.disabled = true;
+          } else {
+            ganadorSelect.disabled = false;
+          }
+        });
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        if (!canManage) {
+          showActionMessage("No tienes permisos", "warning");
+          return;
+        }
+
+        const partidaId = Number(form.getAttribute("data-partida-id"));
+        const formData = new FormData(form);
+
+        const empate = formData.get("empate") === "on";
+        const ganadorRaw = String(formData.get("ganadorId") || "").trim();
+
+        const payload = {
+          resultado: empate
+            ? "EMPATE"
+            : String(formData.get("resultado") || "").trim(),
+          ganadorId: ganadorRaw ? Number(ganadorRaw) : null,
+          empate,
+        };
+
+        perform(
+          () =>
+            apiFetch(`/partidas/${partidaId}/resultado`, {
+              method: "PATCH",
+              headers: authHeaders(true),
+              body: JSON.stringify(payload),
+            }),
+          "No se pudo registrar el resultado",
+        );
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const hasToken = Boolean(localStorage.getItem(TOKEN_KEY));
+    const user = getAuthUser();
+
+    const canManage =
+      user && (user.rol === "ADMIN" || user.rol === "ORGANIZADOR");
+
+    const inscribirme = document.getElementById("btn-inscribirme");
+    const abrirTorneoBtn = document.getElementById("btn-abrir-torneo");
+    const cerrarTorneoBtn = document.getElementById("btn-cerrar-torneo");
+    const estadoApertura = document.getElementById("estado-apertura");
+    const generarRondaBtn = document.getElementById("btn-generar-ronda");
+    const generarSiguienteRondaBtn = document.getElementById(
+      "btn-generar-siguiente-ronda",
+    );
+
+    if (!hasToken) {
+      inscribirme?.classList.add("hidden");
+    }
+
+    if (hasToken && inscribirme && user?.id) {
+      inscribirme.addEventListener("click", () =>
+        perform(
+          () =>
+            apiFetch(`/torneos/${torneoId}/inscripciones`, {
+              method: "POST",
+              headers: authHeaders(true),
+              body: JSON.stringify({ usuarioId: user.id }),
+            }),
+          "No se pudo inscribir",
+        ),
+      );
+    }
+
+    try {
+      const [inscripciones, rondas, partidas, clasificacion] =
+        await Promise.all([
+          fetchInscripciones(),
+          fetchRondas(),
+          fetchPartidas(),
+          fetchClasificacion(),
+        ]);
+
+      renderInscripciones(inscripciones);
+      renderRondas(rondas, Boolean(canManage));
+      renderPartidas(partidas, Boolean(canManage));
+      renderClasificacion(clasificacion);
+    } catch (error) {
+      console.warn("Error cargando datos públicos del torneo", error);
+    }
+
+   if (canManage && hasToken) {
+
+  if (torneoEstado === "PENDIENTE") {
+    abrirTorneoBtn?.classList.remove("hidden");
+    cerrarTorneoBtn?.classList.add("hidden");
+    generarRondaBtn?.classList.add("hidden");
+    generarSiguienteRondaBtn?.classList.add("hidden");
+  }
+
+  if (torneoEstado === "ABIERTO") {
+    abrirTorneoBtn?.classList.add("hidden");
+    cerrarTorneoBtn?.classList.remove("hidden");
+    generarRondaBtn?.classList.add("hidden");
+    generarSiguienteRondaBtn?.classList.add("hidden");
+
+    if (estadoApertura) {
+      estadoApertura.textContent = "Estado actual: ABIERTO";
+      estadoApertura.classList.remove("hidden");
+    }
+  }
+
+  if (torneoEstado === "CERRADO") {
+  abrirTorneoBtn?.classList.remove("hidden");
+  cerrarTorneoBtn?.classList.add("hidden");
+  generarRondaBtn?.classList.remove("hidden");
+  generarSiguienteRondaBtn?.classList.add("hidden");
+
+  if (abrirTorneoBtn) {
+    abrirTorneoBtn.textContent = "Reabrir inscripciones";
+  }
+}
+
+  if (torneoEstado === "EN_CURSO") {
+    abrirTorneoBtn?.classList.add("hidden");
+    cerrarTorneoBtn?.classList.add("hidden");
+    generarRondaBtn?.classList.add("hidden");
+  }
+} else {
+  abrirTorneoBtn?.classList.add("hidden");
+  cerrarTorneoBtn?.classList.add("hidden");
+  generarRondaBtn?.classList.add("hidden");
+  generarSiguienteRondaBtn?.classList.add("hidden");
+  estadoApertura?.classList.add("hidden");
+}
+
+    abrirTorneoBtn?.addEventListener("click", () =>
+      perform(
+        () =>
+          apiFetch(`/torneos/${torneoId}/abrir`, {
+            method: "PATCH",
+            headers: authHeaders(),
+          }),
+        "No se pudo abrir el torneo",
+      ),
+    );
+
+    cerrarTorneoBtn?.addEventListener("click", () =>
+      perform(
+        () =>
+          apiFetch(`/torneos/${torneoId}/cerrar`, {
+            method: "PATCH",
+            headers: authHeaders(),
+          }),
+        "No se pudo cerrar inscripciones",
+      ),
+    );
+
+    generarRondaBtn?.addEventListener("click", () =>
+      perform(
+        () =>
+          apiFetch(`/torneos/${torneoId}/generar-ronda-inicial`, {
+            method: "POST",
+            headers: authHeaders(),
+          }),
+        "No se pudo generar ronda inicial",
+      ),
+    );
+
+    generarSiguienteRondaBtn?.addEventListener("click", () =>
+      perform(
+        () =>
+          apiFetch(`/torneos/${torneoId}/generar-siguiente-ronda`, {
+            method: "POST",
+            headers: authHeaders(),
+          }),
+        "No se pudo generar la siguiente ronda",
+      ),
+    );
+  });
+</script>
+
+<script>
+  import html2pdf from "html2pdf.js";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const botonPdf = document.getElementById("btn-descargar-pdf");
+
+    if (!botonPdf) {
+      console.warn("No se encontró el botón PDF");
+      return;
+    }
+
+    botonPdf.addEventListener("click", async () => {
+      console.log("Click en botón PDF");
+
+      const elemento = document.getElementById("clasificacion-pdf");
+
+      if (!elemento) {
+        alert("No se encontró la clasificación para generar el PDF.");
+        return;
+      }
+
+      const torneoId = botonPdf.dataset.torneoId;
+      const apiBaseUrl = botonPdf.dataset.apiBaseUrl;
+      const token = localStorage.getItem("authToken");
+
+      console.log("torneoId:", torneoId);
+      console.log("apiBaseUrl:", apiBaseUrl);
+      console.log("token existe:", !!token);
+
+      if (!torneoId || !apiBaseUrl) {
+        alert("Faltan datos para subir el PDF.");
+        return;
+      }
+
+      try {
+        botonPdf.disabled = true;
+        botonPdf.textContent = "Guardando PDF...";
+
+        const blob = await html2pdf()
+          .set({
+            margin: 10,
+            filename: "clasificacion-torneo.pdf",
+            image: {
+              type: "jpeg",
+              quality: 0.98,
+            },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+            },
+            jsPDF: {
+              unit: "mm",
+              format: "a4",
+              orientation: "portrait",
+            },
+          })
+          .from(elemento)
+          .outputPdf("blob");
+
+        const formData = new FormData();
+        formData.append("file", blob, `clasificacion-torneo-${torneoId}.pdf`);
+
+        const response = await fetch(
+          `${apiBaseUrl}/api/pdf/torneos/${torneoId}/clasificacion`,
+          {
+            method: "POST",
+            headers: token
+  ? { Authorization: `Bearer ${token}` }
+  : {},
+              
+            body: formData,
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error backend:", errorText);
+          throw new Error("Error subiendo PDF");
+        }
+
+        const data = await response.json();
+
+        alert("PDF guardado correctamente en Supabase Storage");
+
+        if (data.url) {
+          window.open(data.url, "_blank");
+        }
+      } catch (error) {
+        console.error("Error PDF:", error);
+        alert("Error generando o subiendo el PDF");
+      } finally {
+        botonPdf.disabled = false;
+        botonPdf.textContent = "Guardar PDF";
+      }
+    });
+  });
+</script>

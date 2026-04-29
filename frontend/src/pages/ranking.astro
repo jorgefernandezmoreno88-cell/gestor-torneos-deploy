@@ -1,0 +1,116 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import { API_BASE_URL } from '../lib/api';
+---
+
+<MainLayout title="Ranking - Gestor de Torneos" description="Ranking global de jugadores">
+  <div class="container">
+    <h1>Ranking Global</h1>
+    <div id="ranking-message" class="alert" style="display:none;"></div>
+    <p id="ranking-empty" class="empty-state">Cargando ranking...</p>
+    <div class="tabla-wrapper">
+      <table id="ranking-table" class="ranking-table hidden">
+        <thead>
+          <tr>
+            <th>Pos</th>
+            <th>Jugador</th>
+            <th>Email</th>
+            <th>Puntos</th>
+            <th>Victorias</th>
+            <th>Empates</th>
+            <th>Derrotas</th>
+            <th>Partidas</th>
+            <th>Torneos</th>
+          </tr>
+        </thead>
+        <tbody id="ranking-body"></tbody>
+      </table>
+    </div>
+  </div>
+</MainLayout>
+
+<script type="module" define:vars={{ apiBaseUrl: API_BASE_URL }}>
+  function showMessage(text, level = 'error') {
+    const messageBox = document.getElementById('ranking-message');
+    if (!messageBox) return;
+    messageBox.className = `alert alert-${level}`;
+    messageBox.textContent = text;
+    messageBox.style.display = 'block';
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const table = document.getElementById('ranking-table');
+    const body = document.getElementById('ranking-body');
+    const emptyLabel = document.getElementById('ranking-empty');
+
+    if (!table || !body || !emptyLabel) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await fetch(`${apiBaseUrl}/ranking/global`, { headers });
+      if (!response.ok) {
+        throw new Error('No se pudo cargar el ranking global');
+      }
+      const data = await response.json();
+      const rows = Array.isArray(data) ? data : [];
+
+      if (!rows.length) {
+        emptyLabel.textContent = 'No hay datos';
+        return;
+      }
+
+      body.innerHTML = rows
+        .map((item, index) => {
+          const pos = item?.posicion ?? item?.posicionGlobal ?? item?.puesto ?? index + 1;
+          const jugador = item?.usuarioNombre ?? item?.nombre ?? '-';
+          const email = item?.email ?? '-';
+          const puntos = item?.puntos ?? item?.totalPuntos ?? item?.rating ?? '-';
+          const victorias = item?.victorias ?? item?.totalVictorias ?? '-';
+          const empates = item?.empates ?? item?.totalEmpates ?? '-';
+          const derrotas = item?.derrotas ?? item?.totalDerrotas ?? '-';
+          const partidas = item?.partidasJugadas ?? item?.totalPartidasJugadas ?? '-';
+          const torneos = item?.torneosJugados ?? item?.totalTorneos ?? item?.torneos ?? '-';
+          return `<tr>
+            <td>${pos}</td>
+            <td>${jugador}</td>
+            <td>${email}</td>
+            <td>${puntos}</td>
+            <td>${victorias}</td>
+            <td>${empates}</td>
+            <td>${derrotas}</td>
+            <td>${partidas}</td>
+            <td>${torneos}</td>
+          </tr>`;
+        })
+        .join('');
+      emptyLabel.textContent = '';
+      table.classList.remove('hidden');
+    } catch (error) {
+      emptyLabel.textContent = '';
+      showMessage(error instanceof Error ? error.message : 'Error al cargar ranking');
+    }
+  });
+</script>
+
+<style>
+  .tabla-wrapper {
+    overflow-x: auto;
+  }
+  .ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .ranking-table th,
+  .ranking-table td {
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--spacing-sm);
+  }
+  .empty-state {
+    color: var(--color-text-secondary);
+  }
+  .hidden {
+    display: none;
+  }
+</style>

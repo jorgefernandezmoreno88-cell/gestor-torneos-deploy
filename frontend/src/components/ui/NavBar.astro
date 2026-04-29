@@ -1,0 +1,94 @@
+---
+---
+
+<nav class="navbar">
+  <ul class="nav-list">
+    <li><a href="/">Inicio</a></li>
+    <li><a href="/torneos">Torneos</a></li>
+    <li><a href="/ranking">Ranking</a></li>
+    <li><a href="/mis-torneos">Mis torneos</a></li>
+    <li><a href="/perfil">Perfil</a></li>
+    <li><a href="/register" id="nav-register">Registro</a></li>
+    <li><a href="/login" id="nav-login">Login</a></li>
+    <li>
+      <button class="logout-btn" id="nav-logout" type="button">Salir</button>
+    </li>
+  </ul>
+</nav>
+
+<script>
+  const TOKEN_KEY = 'authToken';
+  const USER_KEY = 'authUser';
+
+  function refreshAuthNav() {
+    const loginLink = document.getElementById('nav-login');
+    const registerLink = document.getElementById('nav-register');
+    const logoutButton = document.getElementById('nav-logout');
+    const hasToken = Boolean(localStorage.getItem(TOKEN_KEY));
+
+    if (!loginLink || !logoutButton || !registerLink) return;
+    loginLink.style.display = hasToken ? 'none' : 'inline-block';
+    registerLink.style.display = hasToken ? 'none' : 'inline-block';
+    logoutButton.style.display = hasToken ? 'inline-block' : 'none';
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    refreshAuthNav();
+    const logoutButton = document.getElementById('nav-logout');
+    if (logoutButton) {
+      logoutButton.addEventListener('click', () => {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        window.location.href = '/login';
+      });
+    }
+  });
+</script>
+
+<style>
+  .navbar {
+    display: flex;
+    align-items: center;
+  }
+
+  .nav-list {
+    display: flex;
+    list-style: none;
+    gap: var(--spacing-lg);
+    margin: 0;
+    padding: 0;
+  }
+
+  .nav-list a {
+    color: white;
+    text-decoration: none;
+    font-weight: var(--font-weight-medium);
+    transition: opacity var(--transition-fast);
+  }
+
+  .nav-list a:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+  }
+
+  .logout-btn {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: var(--font-size-sm);
+    display: none;
+  }
+
+  .logout-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  @media (max-width: 768px) {
+    .nav-list {
+      gap: var(--spacing-md);
+      font-size: var(--font-size-sm);
+    }
+  }
+</style>

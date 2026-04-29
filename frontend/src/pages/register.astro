@@ -1,0 +1,111 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+---
+
+<MainLayout title="Registro - Gestor de Torneos" description="Crear cuenta">
+  <div class="container auth-container">
+    <div class="card auth-card">
+      <h1>Crear cuenta</h1>
+      <p class="auth-subtitle">
+        Regístrate para inscribirte y gestionar torneos.
+      </p>
+      <div id="register-message" class="alert" style="display:none;"></div>
+      <form id="register-form" class="auth-form">
+        <label for="nombre">Nombre</label>
+        <input id="nombre" name="nombre" type="text" required />
+
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required />
+
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          title="Mínimo 8 caracteres, una mayúscula, una minúscula y un número"
+        />
+
+        <button type="submit" class="button button-primary">Registrarme</button>
+      </form>
+    </div>
+  </div>
+</MainLayout>
+
+<script>
+  import { register } from "../lib/api";
+
+  const TOKEN_KEY = "authToken";
+
+  function showMessage(text, level = "error") {
+    const messageBox = document.getElementById("register-message");
+    if (!messageBox) return;
+    messageBox.className = `alert alert-${level}`;
+    messageBox.textContent = text;
+    messageBox.style.display = "block";
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    if (localStorage.getItem(TOKEN_KEY)) {
+      window.location.href = "/torneos";
+      return;
+    }
+
+    const form = document.getElementById("register-form");
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const payload = {
+        nombre: String(formData.get("nombre") || ""),
+        email: String(formData.get("email") || ""),
+        password: String(formData.get("password") || ""),
+      };
+
+      try {
+        await register(payload);
+        showMessage(
+          "Registro completado. Ahora puedes iniciar sesión.",
+          "success",
+        );
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 900);
+      } catch (error) {
+        showMessage(
+          error instanceof Error ? error.message : "Error al registrarse",
+          "error",
+        );
+      }
+    });
+  });
+</script>
+
+<style>
+  .auth-container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding-top: var(--spacing-xl);
+  }
+
+  .auth-card h1 {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .auth-subtitle {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .auth-form input {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font: inherit;
+    margin-bottom: var(--spacing-sm);
+  }
+</style>

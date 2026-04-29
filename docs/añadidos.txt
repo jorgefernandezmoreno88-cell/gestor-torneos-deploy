@@ -1,0 +1,45 @@
+-incluir logging (curso astro) para controlar errores. lo van a pedir-> requisito
+-imp
+lementar un chat -> restringir el chat (si le pides una receta de madalenas, que no te la de)-> vamos a usar dos llms.
+ uno hace de filtro de preguntas para el otro que las va responder; temperatura y limitar los tokens.
+-usar tailwind (mejor que bootstrap)
+-programacion tdt (diseñas una prueba; y programas en torno a ello-> el login tiene que tener estas cosas: programas de acuerdo a ello).
+- usar chart.js para generar graficos ( o graficos a partir de los pdfs). ¿graficos que simules datos en tiempo real?
+- como implementar el machine learning¿?-> intentar pedecir quien va a ganar una ronda/torneo (favorito para el torneo)
+					-> emparejamientos mejorados (segun rendimiento real)
+					-> recomendacion de torneos/partidas/jugadores afines
+					-> deteccion de comportamientos raros (muchos abandonos, rsultados sospechosos)
+-supabase: solo almacena datos. el auth se hace desde el backend. como migrar datos ect.
+-añadir tabla de roles: que cantidad de roles va a manejar la app (admin, gestor??, usuario registrado, anonimo).
+					anonimo: ver vistas
+					registrado: poder crear torneos (y gestionarlos)
+					admin: editar torneos, gestionar usuarios, borrar torneos, intervenir si alguien abandona un proyecto, ect)
+					usuario registrado que crea un torneo es el administrador de ese torneo.(cerrar inscripciones, lanzar rondas, ect)
+- la ia: realiza descripciones completas de un torneo en base a unos pocos campos usados por el usuario.
+- busqueda semantica: un usuario puede buscar torneos y la app le pasa resultados
+
+
+EJERCICIOS:
+INSTALAR LOMBOK!!!!!!!!!!!!!!
+.modelar datos
+-generar vistas
+-hacer consultas jpql
+-postman
+-cabeceras (formatos de cabeceras).
+-API rest
+.-json comlejos ( con arrays, ect)
+-repsuestas integradas en las vistas
+-tener hecha un API rest
+- peticiones sin/asinc
+-pojos??-> roles?¿
+-construir vistas que puedean recibir/procesar datos de este tipo y solo--lo necesario.
+-trace-trazas?
+-listado d epuntos (requisitos funcionales en excell)
+-poner filtros en la web -> primero autorizacion luego autenticacion?
+-cookies, autologin (recuerdame) por jemeplo
+-hilos (para simular graficos por jemplo?)
+-pass hash
+-panel de administrador
+-logging (errores)
+-mmachine learning
+- excel objetivos d items (30-35+-);

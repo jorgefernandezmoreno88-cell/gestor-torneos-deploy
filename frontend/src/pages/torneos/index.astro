@@ -1,0 +1,246 @@
+---
+import MainLayout from "../../layouts/MainLayout.astro";
+import { getTorneos } from "../../lib/api";
+import TorneoCard from "../../components/torneos/TorneoCard.astro";
+
+
+let torneos = [];
+let error: string | null = null;
+
+try {
+  torneos = await getTorneos();
+} catch (err) {
+  error =
+    "No se pudieron cargar los torneos. Verifica que el backend esté en funcionamiento.";
+  console.error(err);
+}
+
+const torneosSeguros = Array.isArray(torneos) ? torneos.filter(Boolean) : [];
+const API_BASE_URL = "http://localhost:8080/api";
+---
+
+<MainLayout
+  title="Torneos - Gestor de Torneos"
+  description="Listado de todos los torneos disponibles"
+>
+  <div class="container">
+    <div class="header-section">
+      <h1>Torneos</h1>
+      <a class="button button-primary hidden" id="crear-torneo" href="/torneos/nuevo">
+        + Crear torneo
+      </a>
+    </div>
+
+    <section class="card buscador-semantico">
+      <h2>Buscar torneos</h2>
+
+      <div class="busqueda-row">
+        <input
+          id="semantic-search-input"
+          type="text"
+          placeholder="Ej: torneos para principiantes, formato suizo, casual..."
+        />
+
+        <button id="semantic-search-btn" class="button button-primary" type="button">
+          Buscar
+        </button>
+
+        <button id="semantic-clear-btn" class="button button-secondary" type="button">
+          Limpiar
+        </button>
+      </div>
+
+      <p id="semantic-search-message" class="empty-state"></p>
+    </section>
+
+    {error && <div class="alert alert-error">{error}</div>}
+
+    {
+      torneosSeguros.length === 0 && !error ? (
+        <p class="empty-state">No hay torneos</p>
+      ) : (
+        <div class="torneos-grid" id="torneos-grid">
+          {torneosSeguros.map((torneo) => (
+            <TorneoCard torneo={torneo} />
+          ))}
+        </div>
+      )
+    }
+  </div>
+</MainLayout>
+
+<style>
+
+  .hidden {
+  display: none !important;
+}
+  .header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    gap: var(--spacing-md);
+  }
+
+  .header-section h1 {
+    margin: 0;
+  }
+
+  .buscador-semantico {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .busqueda-row {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+  }
+
+  .busqueda-row input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+  }
+
+  .torneos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--color-text-secondary);
+    padding: var(--spacing-2xl);
+  }
+
+  @media (max-width: 768px) {
+    .header-section,
+    .busqueda-row {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .button,
+    .busqueda-row input {
+      width: 100%;
+    }
+
+    .torneos-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script define:vars={{ apiBaseUrl: API_BASE_URL }}>
+  document.addEventListener("DOMContentLoaded", () => {
+    const button = document.getElementById("crear-torneo");
+    const userRaw = localStorage.getItem("authUser");
+
+    if (button && userRaw) {
+      try {
+        const user = JSON.parse(userRaw);
+        if (user?.rol === "ADMIN" || user?.rol === "ORGANIZADOR") {
+          button.classList.remove("hidden");
+        }
+      } catch (_e) {
+        // no-op
+      }
+    }
+
+    const input = document.getElementById("semantic-search-input");
+    const btnBuscar = document.getElementById("semantic-search-btn");
+    const btnLimpiar = document.getElementById("semantic-clear-btn");
+    const mensaje = document.getElementById("semantic-search-message");
+    const grid = document.getElementById("torneos-grid");
+
+    function renderTorneos(torneos) {
+      if (!grid) return;
+
+      if (!Array.isArray(torneos) || torneos.length === 0) {
+        grid.innerHTML = "";
+        return;
+      }
+
+      grid.innerHTML = torneos
+        .map((torneo) => {
+          const id = torneo.id;
+          const nombre = torneo.nombre ?? "Torneo sin nombre";
+          const descripcion = torneo.descripcion ?? "";
+          const formato = torneo.formato ?? "-";
+          const nivel = torneo.nivel ?? "-";
+          const similitud = "";
+    
+
+          return `
+  <article class="torneo-card card">
+    <h2>${nombre}</h2>
+
+    <p>${descripcion}</p>
+
+    <div class="torneo-meta">
+      <span>${formato}</span>
+      <span>${nivel}</span>
+    </div>
+
+    <div style="margin-top: 1rem;">
+      <a class="button button-primary" href="/torneos/${id}">
+        Ver detalle
+      </a>
+    </div>
+  </article>
+`;
+        })
+        .join("");
+    }
+
+    async function buscarSemantico() {
+      const q = input?.value?.trim();
+
+      if (!q) {
+        if (mensaje) mensaje.textContent = "Escribe algo para buscar.";
+        return;
+      }
+
+      try {
+        if (mensaje) mensaje.textContent = "Buscando torneos relacionados...";
+
+        const response = await fetch(
+          `${apiBaseUrl}/busqueda/torneos?q=${encodeURIComponent(q)}`
+        );
+
+        if (!response.ok) {
+          throw new Error("No se pudo realizar la búsqueda.");
+        }
+
+        const resultados = await response.json();
+        renderTorneos(resultados);
+
+        if (mensaje) {
+          mensaje.textContent =
+            resultados.length === 0
+              ? "No se encontraron torneos relacionados."
+              : `Mostrando ${resultados.length} resultados relacionados.`;
+        }
+      } catch (error) {
+        console.error(error);
+        if (mensaje) mensaje.textContent = "Error realizando la búsqueda semántica.";
+      }
+    }
+
+    btnBuscar?.addEventListener("click", buscarSemantico);
+
+    input?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        buscarSemantico();
+      }
+    });
+
+    btnLimpiar?.addEventListener("click", () => {
+      if (input) input.value = "";
+      window.location.reload();
+    });
+  });
+</script>

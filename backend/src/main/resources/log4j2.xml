@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+
+<Properties>
+<Property name="LOG_PATTERN">
+%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n
+</Property>
+<Property name="LOG_DIR">logs</Property>
+</Properties>
+
+<Appenders>
+<!-- Consola -->
+<Console name="Console" target="SYSTEM_OUT">
+<PatternLayout pattern="${LOG_PATTERN}" />
+</Console>
+
+<!-- Archivo con rotación diaria / 10MB -->
+<RollingFile name="AppLog"
+fileName="${LOG_DIR}/app.log"
+filePattern="${LOG_DIR}/app-%d{yyyy-MM-dd}-%i.log.gz">
+<PatternLayout pattern="${LOG_PATTERN}" />
+<Policies>
+<TimeBasedTriggeringPolicy interval="1" />
+<SizeBasedTriggeringPolicy size="10MB" />
+</Policies>
+<DefaultRolloverStrategy max="30" />
+</RollingFile>
+
+<!-- Archivo solo de errores -->
+<RollingFile name="ErrorLog"
+fileName="${LOG_DIR}/error.log"
+filePattern="${LOG_DIR}/error-%d{yyyy-MM-dd}.log.gz">
+<PatternLayout pattern="${LOG_PATTERN}" />
+<LevelRangeFilter minLevel="ERROR" maxLevel="FATAL" onMatch="ACCEPT" onMismatch="DENY" />
+<Policies>
+<TimeBasedTriggeringPolicy interval="1" />
+</Policies>
+</RollingFile>
+</Appenders>
+
+<Loggers>
+<Logger name="com.demo.logging" level="DEBUG" additivity="false">
+<AppenderRef ref="Console" />
+<AppenderRef ref="AppLog" />
+<AppenderRef ref="ErrorLog" />
+</Logger>
+
+<Root level="INFO">
+<AppenderRef ref="Console" />
+</Root>
+</Loggers>
+
+</Configuration>

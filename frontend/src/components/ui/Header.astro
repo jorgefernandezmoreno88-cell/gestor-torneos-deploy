@@ -1,0 +1,57 @@
+---
+import NavBar from './NavBar.astro';
+---
+
+<header class="header">
+  <div class="container">
+    <div class="header-content">
+      <div class="logo">
+        <h1><a href="/">Gestor de Torneos</a></h1>
+      </div>
+      <NavBar />
+    </div>
+  </div>
+</header>
+
+<style>
+  .header {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: white;
+    padding: var(--spacing-md) 0;
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo h1 {
+    margin: 0;
+    font-size: var(--font-size-2xl);
+  }
+
+  .logo a {
+    color: white;
+    text-decoration: none;
+  }
+
+  .logo a:hover {
+    opacity: 0.9;
+    text-decoration: none;
+  }
+
+  @media (max-width: 768px) {
+    .header {
+      padding: var(--spacing-sm) 0;
+    }
+
+    .logo h1 {
+      font-size: var(--font-size-xl);
+    }
+  }
+</style>
