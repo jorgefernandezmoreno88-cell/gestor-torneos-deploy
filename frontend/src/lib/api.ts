@@ -7,7 +7,7 @@ import type {
   Usuario,
 } from '../types/index';
 
-export const API_BASE_URL = 'http://localhost:8080/api';
+export const API_BASE_URL = "https://gestor-torneos-deploy-production.up.railway.app/api";
 const TOKEN_KEY = 'authToken';
 
 /**
