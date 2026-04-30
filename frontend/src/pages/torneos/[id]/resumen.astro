@@ -1,8 +1,8 @@
 ---
 export const prerender = false;
 
-import MainLayout from '../../../../layouts/MainLayout.astro';
-import { API_BASE_URL } from '../../../../lib/api';
+import MainLayout from '../../../layouts/MainLayout.astro';
+import { API_BASE_URL } from '../../../lib/api';
 
 const { id } = Astro.params;
 const torneoId = Number(id);
