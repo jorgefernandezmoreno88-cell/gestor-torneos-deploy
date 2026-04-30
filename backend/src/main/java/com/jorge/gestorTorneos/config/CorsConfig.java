@@ -8,7 +8,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class CorsConfig {
 
-    private static final String ASTRO_ORIGIN = "http://localhost:4321";
+    private static final String LOCAL = "http://localhost:4321";
+    private static final String VERCEL = "gestor-torneos-deploy.vercel.app\n";
+    		
 
     @Bean
     public WebMvcConfigurer corsConfigurer() {
@@ -16,7 +18,7 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        .allowedOrigins(ASTRO_ORIGIN)
+                        .allowedOrigins(LOCAL, VERCEL)
                         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(false);
