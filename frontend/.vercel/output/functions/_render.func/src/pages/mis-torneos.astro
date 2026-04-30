@@ -1,0 +1,102 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import { API_BASE_URL } from '../lib/api';
+---
+
+<MainLayout title="Mis Torneos - Gestor de Torneos" description="Torneos en los que estás inscrito">
+  <div class="container">
+    <h1>Mis torneos</h1>
+    <div id="mis-torneos-message" class="alert" style="display:none;"></div>
+    <p id="mis-torneos-empty" class="empty-state">Cargando torneos...</p>
+    <div id="mis-torneos-grid" class="torneos-grid hidden"></div>
+
+  </div>
+</MainLayout>
+
+<script type="module" define:vars={{ apiBaseUrl: API_BASE_URL }}>
+  const TOKEN_KEY = 'authToken';
+  const USER_KEY = 'authUser';
+
+  function showMessage(text, level = 'error') {
+    const messageBox = document.getElementById('mis-torneos-message');
+    if (!messageBox) return;
+    messageBox.className = `alert alert-${level}`;
+    messageBox.textContent = text;
+    messageBox.style.display = 'block';
+  }
+
+  function getAuthUser() {
+    const userRaw = localStorage.getItem(USER_KEY);
+    if (!userRaw) return null;
+    try {
+      return JSON.parse(userRaw);
+    } catch (_e) {
+      localStorage.removeItem(USER_KEY);
+      return null;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const user = getAuthUser();
+    const emptyLabel = document.getElementById('mis-torneos-empty');
+    const grid = document.getElementById('mis-torneos-grid');
+
+    if (!emptyLabel || !grid) return;
+
+    if (!token || !user?.id) {
+      showMessage('Necesitas iniciar sesión', 'warning');
+      setTimeout(() => (window.location.href = '/login'), 800);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/usuarios/${user.id}/torneos-inscrito`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        throw new Error('No se pudieron cargar tus torneos');
+      }
+      const torneos = await response.json();
+      const list = Array.isArray(torneos) ? torneos : [];
+
+      if (!list.length) {
+        emptyLabel.textContent = 'Aún no estás inscrito en ningún torneo.';
+        return;
+      }
+
+      grid.innerHTML = list
+        .map(
+          (torneo) => `<article class="card torneo-item">
+            <h3>${torneo?.nombre || 'Torneo'}</h3>
+            <p>${torneo?.descripcion || ''}</p>
+            <p><strong>Estado:</strong> ${torneo?.estado || '-'}</p>
+            <a class="button button-secondary" href="/torneos/${torneo?.id}">Ver detalle</a>
+          </article>`
+        )
+        .join('');
+      emptyLabel.textContent = '';
+      grid.classList.remove('hidden');
+    } catch (error) {
+      emptyLabel.textContent = '';
+      showMessage(error instanceof Error ? error.message : 'Error al cargar tus torneos');
+    }
+  });
+</script>
+
+<style>
+  .torneos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+  }
+  .torneo-item h3 {
+    margin-top: 0;
+  }
+  .empty-state {
+    color: var(--color-text-secondary);
+  }
+  .hidden {
+    display: none;
+  }
+</style>

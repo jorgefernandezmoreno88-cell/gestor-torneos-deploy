@@ -1,0 +1,123 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import { getTorneos } from '../lib/api';
+import TorneoCard from '../components/torneos/TorneoCard.astro';
+
+let torneos = [];
+let error: string | null = null;
+
+try {
+  torneos = await getTorneos();
+} catch (err) {
+  error =
+    'No se pudieron cargar los torneos. Verifica que el backend esté en funcionamiento en http://localhost:8080';
+  console.error(err);
+}
+
+const torneosSeguros = Array.isArray(torneos) ? torneos.filter(Boolean) : [];
+---
+
+<MainLayout title="Inicio - Gestor de Torneos" description="Gestiona tus torneos deportivos">
+  <div class="container">
+    <section class="hero">
+      <h1>Gestor de Torneos</h1>
+      <p>Organiza, gestiona y sigue tus torneos deportivos de forma sencilla</p>
+      <a href="/torneos" class="button button-primary">Explorar Torneos</a>
+    </section>
+
+    <section class="torneos-preview">
+      <h2>Últimos Torneos</h2>
+
+      {
+        error && (
+          <div class="alert alert-error">
+            ⚠️ {error}
+          </div>
+        )
+      }
+
+      {
+        torneosSeguros.length === 0 && !error ? (
+          <p class="empty-state">No hay torneos</p>
+        ) : (
+          <div class="torneos-grid">
+            {torneosSeguros.slice(0, 3).map((torneo) => (
+              <TorneoCard torneo={torneo} />
+            ))}
+          </div>
+        )
+      }
+
+      {
+        torneosSeguros.length > 3 && (
+          <div class="text-center mt-lg">
+            <a href="/torneos" class="button button-secondary">
+              Ver todos los torneos ({torneosSeguros.length})
+            </a>
+          </div>
+        )
+      }
+    </section>
+  </div>
+</MainLayout>
+
+<style>
+  .hero {
+    text-align: center;
+    padding: var(--spacing-2xl) var(--spacing-lg);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: white;
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-2xl);
+  }
+
+  .hero h1 {
+    color: white;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .hero p {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-lg);
+    margin: 0 0 var(--spacing-lg) 0;
+  }
+
+  .torneos-preview {
+    margin: var(--spacing-2xl) 0;
+  }
+
+  .torneos-preview h2 {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .torneos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--color-text-secondary);
+    padding: var(--spacing-2xl);
+  }
+
+  @media (max-width: 768px) {
+    .hero {
+      padding: var(--spacing-lg);
+    }
+
+    .hero h1 {
+      font-size: var(--font-size-2xl);
+    }
+
+    .hero p {
+      font-size: var(--font-size-base);
+    }
+
+    .torneos-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

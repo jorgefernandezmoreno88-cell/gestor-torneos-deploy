@@ -215,7 +215,7 @@ if (!error && !torneo) {
       class="button button-secondary"
       type="button"
        data-torneo-id={torneoId}
-  data-api-base-url={"https://gestor-torneos-deploy-production.up.railway.app"}
+  data-api-base-url={"http://localhost:8080"}
     >
       Descargar PDF
     </button>
@@ -1262,23 +1262,11 @@ if (!error && !torneo) {
 
         const data = await response.json();
 
-        console.log("Respuesta PDF backend:", data);
-
         alert("PDF guardado correctamente en Supabase Storage");
 
-        const pdfUrl =
-  data.url ||
-  data.publicUrl ||
-  data.signedUrl ||
-  data.downloadUrl ||
-  data.urlPdf;
-
-if (pdfUrl) {
-  window.open(pdfUrl, "_blank");
-} else {
-  console.warn("El backend no devolvió URL del PDF:", data);
-}
-
+        if (data.url) {
+          window.open(data.url, "_blank");
+        }
       } catch (error) {
         console.error("Error PDF:", error);
         alert("Error generando o subiendo el PDF");

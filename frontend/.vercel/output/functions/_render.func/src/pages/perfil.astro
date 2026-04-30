@@ -1,0 +1,332 @@
+---
+import MainLayout from "../layouts/MainLayout.astro";
+import { API_BASE_URL } from "../lib/api";
+---
+
+<MainLayout
+  title="Perfil - Gestor de Torneos"
+  description="Datos del perfil de usuario"
+>
+  <div class="container">
+    <h1>Mi Perfil</h1>
+    <div id="perfil-message" class="alert" style="display:none;"></div>
+
+    <div id="perfil-card" class="card section-card hidden">
+      <h2>Datos personales</h2>
+      <p><strong>Nombre:</strong> <span id="perfil-nombre">-</span></p>
+      <p><strong>Email:</strong> <span id="perfil-email">-</span></p>
+      <p><strong>Rol:</strong> <span id="perfil-rol">-</span></p>
+    </div>
+
+    <div id="resumen-card" class="card section-card hidden">
+      <h2>Resumen competitivo</h2>
+      <p id="ranking-empty">Cargando resumen competitivo...</p>
+      <div id="ranking-data" class="hidden">
+        <p>
+          <strong>Posición global:</strong>
+          <span id="ranking-posicion">-</span>
+        </p>
+        <p><strong>Puntos:</strong> <span id="ranking-puntos">-</span></p>
+        <p><strong>Victorias:</strong> <span id="ranking-victorias">-</span></p>
+        <p><strong>Empates:</strong> <span id="ranking-empates">-</span></p>
+        <p><strong>Derrotas:</strong> <span id="ranking-derrotas">-</span></p>
+        <p id="resumen-empty">No hay datos disponibles para mostrar.</p>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2>Estadísticas</h2>
+
+      <p>
+        <strong>Partidas jugadas:</strong>
+        <span id="partidas-jugadas">0</span>
+      </p>
+      <p>
+        <strong> victorias:</strong>
+        <span id="porcentaje-victorias">0%</span>
+      </p>
+      <p><strong>empates:</strong> <span id="porcentaje-empates">0%</span></p>
+      <p>
+        <strong>derrotas:</strong>
+        <span id="porcentaje-derrotas">0%</span>
+      </p>
+    </section>
+
+    <div id="torneos-card" class="card section-card hidden">
+      <h2>Mis torneos</h2>
+      <p>
+        <strong>Total de torneos:</strong>
+        <span id="torneos-total">0</span>
+      </p>
+      <a href="/mis-torneos" class="button button-secondary">Ir a mis torneos</a
+      >
+    </div>
+
+    <div id="acciones-card" class="card section-card hidden">
+      <h2>Acciones</h2>
+      <div class="acciones-grid">
+        <a href="/ranking" class="button button-secondary">Ver ranking global</a
+        >
+        <a href="/mis-torneos" class="button button-secondary"
+          >Ver mis torneos</a
+        >
+        <button id="btn-logout" type="button" class="button button-primary"
+          >Cerrar sesión</button
+        >
+      </div>
+    </div>
+  </div>
+</MainLayout>
+
+<script type="module" define:vars={{ apiBaseUrl: API_BASE_URL }}>
+  const TOKEN_KEY = "authToken";
+  const USER_KEY = "authUser";
+
+  function showMessage(text, level = "error") {
+    const messageBox = document.getElementById("perfil-message");
+    if (!messageBox) return;
+    messageBox.className = `alert alert-${level}`;
+    messageBox.textContent = text;
+    messageBox.style.display = "block";
+  }
+
+  function setProfile(user) {
+    document.getElementById("perfil-nombre").textContent = user?.nombre || "-";
+    document.getElementById("perfil-email").textContent = user?.email || "-";
+    document.getElementById("perfil-rol").textContent = user?.rol || "-";
+    document.getElementById("perfil-card")?.classList.remove("hidden");
+  }
+
+  function setRankingData(data) {
+    const rankingEmpty = document.getElementById("ranking-empty");
+    const rankingData = document.getElementById("ranking-data");
+    const resumenEmpty = document.getElementById("resumen-empty");
+
+    const posicionEl = document.getElementById("ranking-posicion");
+    const puntosEl = document.getElementById("ranking-puntos");
+    const victoriasEl = document.getElementById("ranking-victorias");
+    const empatesEl = document.getElementById("ranking-empates");
+    const derrotasEl = document.getElementById("ranking-derrotas");
+
+    const partidasJugadasEl = document.getElementById("partidas-jugadas");
+    const porcentajeVictoriasEl = document.getElementById(
+      "porcentaje-victorias",
+    );
+    const porcentajeEmpatesEl = document.getElementById("porcentaje-empates");
+    const porcentajeDerrotasEl = document.getElementById("porcentaje-derrotas");
+
+    if (!data) {
+      if (rankingEmpty) {
+        rankingEmpty.textContent = "Todavía no tienes datos en el ranking.";
+        rankingEmpty.classList.remove("hidden");
+      }
+
+      if (rankingData) {
+        rankingData.classList.add("hidden");
+      }
+      if (resumenEmpty)
+        resumenEmpty.textContent = "Todavía no tienes datos en el ranking.";
+      resumenEmpty.classList.remove("hidden");
+
+      if (partidasJugadasEl) partidasJugadasEl.textContent = "0";
+      if (porcentajeVictoriasEl) porcentajeVictoriasEl.textContent = "0%";
+      if (porcentajeEmpatesEl) porcentajeEmpatesEl.textContent = "0%";
+      if (porcentajeDerrotasEl) porcentajeDerrotasEl.textContent = "0%";
+      return;
+    }
+
+    if (rankingEmpty) {
+      rankingEmpty.textContent = "";
+      rankingEmpty.classList.add("hidden");
+    }
+
+    if (rankingData) {
+      rankingData.classList.remove("hidden");
+    }
+
+    if (resumenEmpty) {
+      resumenEmpty.textContent = "";
+      resumenEmpty.classList.add("hidden");
+    }
+
+    const puntos = Number(data.puntos ?? data.puntosTotales ?? 0);
+    const victorias = Number(data.victorias ?? 0);
+    const empates = Number(data.empates ?? 0);
+    const derrotas = Number(data.derrotas ?? 0);
+
+    const partidasJugadas =
+      Number(data.partidasJugadas ?? 0) || victorias + empates + derrotas;
+
+    const porcentajeVictorias =
+      partidasJugadas > 0 ? Math.round((victorias / partidasJugadas) * 100) : 0;
+
+    const porcentajeEmpates =
+      partidasJugadas > 0 ? Math.round((empates / partidasJugadas) * 100) : 0;
+
+    const porcentajeDerrotas =
+      partidasJugadas > 0 ? Math.round((derrotas / partidasJugadas) * 100) : 0;
+
+    if (posicionEl) posicionEl.textContent = data.posicion ?? "-";
+    if (puntosEl) puntosEl.textContent = puntos;
+    if (victoriasEl) victoriasEl.textContent = victorias;
+    if (empatesEl) empatesEl.textContent = empates;
+    if (derrotasEl) derrotasEl.textContent = derrotas;
+
+    if (partidasJugadasEl) partidasJugadasEl.textContent = partidasJugadas;
+    if (porcentajeVictoriasEl)
+      porcentajeVictoriasEl.textContent = `${porcentajeVictorias}%`;
+    if (porcentajeEmpatesEl)
+      porcentajeEmpatesEl.textContent = `${porcentajeEmpates}%`;
+    if (porcentajeDerrotasEl)
+      porcentajeDerrotasEl.textContent = `${porcentajeDerrotas}%`;
+  }
+
+  async function fetchWithAuth(url, token) {
+    console.log("FETCH:", url);
+    console.log("TOKEN:", token);
+
+    const response = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    console.log("STATUS:", response.status);
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("ERROR BACKEND:", text);
+      throw new Error(text || `Error en ${url}`);
+    }
+
+    return response.json();
+  }
+
+  async function loadRankingSummary(user, token) {
+    const resumenCard = document.getElementById("resumen-card");
+    resumenCard?.classList.remove("hidden");
+
+    try {
+      const rankingData = await fetchWithAuth(
+        `${apiBaseUrl}/ranking/global`,
+        token,
+      );
+      const rankingList = Array.isArray(rankingData) ? rankingData : [];
+
+      const usuarioRanking = rankingList.find((item) => {
+        const mismoId = Number(item?.usuarioId) === Number(user?.id);
+        const mismoEmail =
+          item?.email &&
+          user?.email &&
+          String(item.email).toLowerCase() === String(user.email).toLowerCase();
+
+        const mismoNombre =
+          (item?.usuarioNombre || item?.nombre) &&
+          user?.nombre &&
+          String(item.usuarioNombre || item.nombre).toLowerCase() ===
+            String(user.nombre).toLowerCase();
+
+        return mismoId || mismoEmail || mismoNombre;
+      });
+
+      console.log("USUARIO:", user);
+      console.log("RANKING:", rankingList);
+      console.log("USUARIO RANKING:", usuarioRanking);
+
+      setRankingData(usuarioRanking || null);
+    } catch (error) {
+      console.error("ERROR loadRankingSummary:", error);
+      setRankingData(null);
+      showMessage("Error al cargar ranking", "warning");
+    }
+  }
+
+  async function loadTorneosSummary(userId, token) {
+    const torneosCard = document.getElementById("torneos-card");
+    const total = document.getElementById("torneos-total");
+    torneosCard?.classList.remove("hidden");
+    if (!total) return;
+
+    if (!userId) {
+      total.textContent = "0";
+      return;
+    }
+
+    try {
+      const torneos = await fetchWithAuth(
+        `${apiBaseUrl}/usuarios/${userId}/torneos`,
+        token,
+      );
+      const list = Array.isArray(torneos) ? torneos : [];
+      total.textContent = String(list.length);
+    } catch (_errPrimary) {
+      try {
+        const torneosFallback = await fetchWithAuth(
+          `${apiBaseUrl}/usuarios/${userId}/torneos-inscrito`,
+          token,
+        );
+        const fallbackList = Array.isArray(torneosFallback)
+          ? torneosFallback
+          : [];
+        total.textContent = String(fallbackList.length);
+      } catch (_errFallback) {
+        total.textContent = "0";
+        // no mostrar error → UX limpia
+      }
+    }
+  }
+
+  function bindActions() {
+    document.getElementById("acciones-card")?.classList.remove("hidden");
+    const logoutButton = document.getElementById("btn-logout");
+    logoutButton?.addEventListener("click", () => {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      window.location.href = "/login";
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      showMessage("Necesitas iniciar sesión", "warning");
+      setTimeout(() => (window.location.href = "/login"), 800);
+      return;
+    }
+
+    try {
+      const user = await fetchWithAuth(`${apiBaseUrl}/auth/me`, token);
+      setProfile(user);
+      localStorage.setItem(
+        USER_KEY,
+        JSON.stringify({
+          id: user?.id,
+          nombre: user?.nombre,
+          email: user?.email,
+          rol: user?.rol,
+        }),
+      );
+      await loadRankingSummary(user, token);
+      await loadTorneosSummary(user?.id, token);
+      bindActions();
+    } catch (error) {
+      showMessage(
+        error instanceof Error ? error.message : "Error al cargar perfil",
+      );
+    }
+  });
+</script>
+
+<style>
+  .section-card {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .acciones-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+
+  .hidden {
+    display: none;
+  }
+</style>

@@ -1,0 +1,149 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+---
+
+<MainLayout title="Nuevo Torneo - Gestor de Torneos" description="Crear torneo">
+  <div class="container form-container">
+    <div class="card">
+      <h1>Crear torneo</h1>
+      <div id="torneo-message" class="alert" style="display:none;"></div>
+
+      <form id="torneo-form" class="torneo-form">
+        <label for="nombre">Nombre</label>
+        <input id="nombre" name="nombre" required />
+
+        <label for="descripcion">Descripción</label>
+        <textarea id="descripcion" name="descripcion"></textarea>
+
+        <label for="fechaInicio">Fecha inicio</label>
+        <input id="fechaInicio" name="fechaInicio" type="datetime-local" required />
+
+        <label for="fechaFin">Fecha fin</label>
+        <input id="fechaFin" name="fechaFin" type="datetime-local" required />
+
+        <label for="formato">Formato</label>
+        <select id="formato" name="formato" required>
+          <option value="SUIZO">SUIZO</option>
+          <option value="ELIMINATORIA">ELIMINATORIA</option>
+          <option value="LIGA">LIGA</option>
+        </select>
+
+        <label for="nivel">Nivel</label>
+        <select id="nivel" name="nivel" required>
+          <option value="PRINCIPIANTE">PRINCIPIANTE</option>
+          <option value="INTERMEDIO">INTERMEDIO</option>
+          <option value="AVANZADO">AVANZADO</option>
+        </select>
+
+        <label for="plazasMaximas">Plazas máximas</label>
+        <input id="plazasMaximas" name="plazasMaximas" type="number" min="2" required />
+
+        <label for="numRondas">Número de rondas</label>
+        <input id="numRondas" name="numRondas" type="number" min="1" required />
+
+        <label for="costeInscripcion">Coste inscripción</label>
+        <input id="costeInscripcion" name="costeInscripcion" type="number" min="0" step="0.01" required />
+
+        <button class="button button-primary" type="submit">Crear torneo</button>
+      </form>
+    </div>
+  </div>
+</MainLayout>
+
+<script>
+  import { crearTorneo } from '../../lib/api';
+
+  const TOKEN_KEY = 'authToken';
+  const USER_KEY = 'authUser';
+
+  function showMessage(text, level = 'error') {
+    const messageBox = document.getElementById('torneo-message');
+    if (!messageBox) return;
+    messageBox.className = `alert alert-${level}`;
+    messageBox.textContent = text;
+    messageBox.style.display = 'block';
+  }
+
+  function toIsoDateTime(value) {
+    return value ? new Date(value).toISOString() : null;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const userRaw = localStorage.getItem(USER_KEY);
+    let user = null;
+    if (userRaw) {
+      try {
+        user = JSON.parse(userRaw);
+      } catch (_e) {
+        localStorage.removeItem(USER_KEY);
+      }
+    }
+
+    if (!token) {
+      showMessage('Necesitas iniciar sesión');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 900);
+      return;
+    }
+
+    if (!user || (user.rol !== 'ADMIN' && user.rol !== 'ORGANIZADOR')) {
+      showMessage('No tienes permisos');
+      return;
+    }
+
+    const form = document.getElementById('torneo-form');
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+
+      const payload = {
+        nombre: String(formData.get('nombre') || ''),
+        descripcion: String(formData.get('descripcion') || ''),
+        fechaInicio: toIsoDateTime(String(formData.get('fechaInicio') || '')),
+        fechaFin: toIsoDateTime(String(formData.get('fechaFin') || '')),
+        formato: String(formData.get('formato') || ''),
+        nivel: String(formData.get('nivel') || ''),
+        plazasMaximas: Number(formData.get('plazasMaximas')),
+        numRondas: Number(formData.get('numRondas')),
+        costeInscripcion: Number(formData.get('costeInscripcion')),
+      };
+
+      try {
+        const torneo = await crearTorneo(payload);
+        showMessage('Operación realizada correctamente', 'success');
+        window.location.href = `/torneos/${torneo.id}`;
+      } catch (error) {
+        showMessage(error instanceof Error ? error.message : 'Error al crear torneo');
+      }
+    });
+  });
+</script>
+
+<style>
+  .form-container {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .torneo-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+
+  .torneo-form input,
+  .torneo-form textarea,
+  .torneo-form select {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font: inherit;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .torneo-form textarea {
+    min-height: 90px;
+  }
+</style>

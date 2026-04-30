@@ -1,0 +1,62 @@
+---
+export const prerender = false;
+
+import MainLayout from '../../../layouts/MainLayout.astro';
+import { API_BASE_URL } from '../../../lib/api';
+
+const { id } = Astro.params;
+const torneoId = Number(id);
+---
+
+<MainLayout title="Resumen de Torneo - Gestor de Torneos" description="Resumen del torneo">
+  <div class="container">
+    <h1>Resumen del torneo #{id}</h1>
+    <div id="resumen-message" class="alert" style="display:none;"></div>
+    <pre id="resumen-content" class="card resumen-pre">Cargando resumen...</pre>
+  </div>
+</MainLayout>
+
+<script type="module" define:vars={{ apiBaseUrl: API_BASE_URL, torneoId }}>
+  const TOKEN_KEY = 'authToken';
+
+  function showMessage(text, level = 'error') {
+    const messageBox = document.getElementById('resumen-message');
+    if (!messageBox) return;
+    messageBox.className = `alert alert-${level}`;
+    messageBox.textContent = text;
+    messageBox.style.display = 'block';
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const content = document.getElementById('resumen-content');
+    if (!content) return;
+    if (!Number.isFinite(Number(torneoId))) {
+      showMessage('Torneo no encontrado');
+      content.textContent = '';
+      return;
+    }
+
+    const token = localStorage.getItem(TOKEN_KEY);
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/torneos/${torneoId}/resumen`, { headers });
+      if (!response.ok) {
+        throw new Error('Torneo no encontrado');
+      }
+      const resumen = await response.json();
+      content.textContent = JSON.stringify(resumen, null, 2);
+    } catch (error) {
+      content.textContent = '';
+      showMessage(error instanceof Error ? error.message : 'Torneo no encontrado');
+    }
+  });
+</script>
+
+<style>
+  .resumen-pre {
+    white-space: pre-wrap;
+    margin-top: var(--spacing-md);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+</style>
